@@ -57,3 +57,58 @@ code_logs.message_id = messages.message_id;`
 
 	return log, nil
 }
+
+func CreateCodeLog(log CodeLog) (int64, error) {
+	var db *sql.DB
+	var err error
+	var tx *sql.Tx
+	var query string
+	var res sql.Result
+	var log_id int64
+
+	var queryInsertLogs string =
+`insert into logs(log_code)
+values('%s')`
+
+	var queryInsertCodeLogs string =
+`insert into code_logs(log_id, filepath, line_no, message_id)
+values(%d, '%s', %d, %d)`
+
+
+	db, err = sql.Open("mysql", conStr)
+	if err != nil {
+		return -1, err
+	}
+	defer db.Close()
+
+	tx, err = db.Begin()
+	if err != nil {
+		return -1, err
+	}
+	defer tx.Rollback()
+
+	query = fmt.Sprintf(queryInsertLogs, log.Log_code)
+	res, err = tx.Exec(query)
+	if err != nil {
+		return -1, err
+	}
+
+	log_id, err = res.LastInsertId()
+	if err != nil {
+		return -1, err
+	}
+
+	// Code smell: magic number
+	query = fmt.Sprintf(queryInsertCodeLogs,
+		log_id,
+		log.Filepath,
+		log.Line_no,
+		1)
+	res, err = tx.Exec(query)
+	if err != nil {
+		return -1, err
+	}
+
+	// tx.Commit()
+	return log_id, nil
+}
